@@ -19,7 +19,7 @@ import { throttle } from '@tanstack/react-pacer';
 import { toast } from 'sonner';
 import { ApiError, apiJson, describeError, isAbortError } from '@/lib/api/client';
 import { generateClone, sanitizeInstruct } from '@/lib/api/generate';
-import type { GenerateResult } from '@/lib/api/types';
+import type { EnginesResponse, GenerateResult } from '@/lib/api/types';
 import { tr } from '@/lib/i18n-text';
 import { queryKeys } from '@/lib/query';
 import { cloneSettingsStore } from '@/lib/store/clone-settings';
@@ -27,6 +27,7 @@ import { setLatestOutput } from '@/lib/store/output';
 import { referenceStore } from '@/lib/store/reference';
 import { beginAppActivity } from '@/lib/app-activity';
 import { useTtsReadiness } from './use-tts-readiness';
+import { activeTtsBackend } from './use-engines';
 import { recordActionBreadcrumb } from '@/lib/report-breadcrumb';
 
 const TIMER_TICK_MS = 100;
@@ -258,6 +259,12 @@ function useGenerateController(): UseGenerateClone {
       try {
         const free = design?.instruct ?? settings.instruct;
         const instruct = free.trim() ? announceInstructWarnings(free) : '';
+        // #2938: send the picked preset only to an engine that offers it, so a
+        // choice saved on Supertonic-3 never reaches an engine without presets.
+        const presets =
+          activeTtsBackend(queryClient.getQueryData<EnginesResponse>(queryKeys.engines))
+            ?.voice_presets ?? [];
+        const voice = presets.includes(settings.presetVoice) ? settings.presetVoice : undefined;
         const input = {
           text: design?.text ?? settings.text,
           seed: design?.seed,
@@ -276,6 +283,7 @@ function useGenerateController(): UseGenerateClone {
           denoise: settings.denoise,
           postprocess: settings.postprocess,
           duration: settings.duration,
+          voice,
         };
         const result = await generateClone(input, {
           signal: controller.signal,

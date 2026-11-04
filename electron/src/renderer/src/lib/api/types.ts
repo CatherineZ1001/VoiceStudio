@@ -66,6 +66,8 @@ export interface EngineBackend {
   reason: string | null;
   hint?: string | null;
   supports_cloning?: boolean | null;
+  /** Built-in speakers the `voice` generate field selects (#2938); empty/absent = none. */
+  voice_presets?: string[];
   /** Seconds of a clone reference the engine uses; null when not verified (#2281). */
   max_ref_seconds?: number | null;
   /** How that stretch is chosen from a longer clip. */
@@ -146,6 +148,8 @@ export interface CloneGenerateInput {
   postprocess: boolean;
   /** '' = auto. */
   duration: string;
+  /** Preset speaker id for engines that ship presets; omitted = engine default. */
+  voice?: string;
 }
 
 export interface GenerateResult {

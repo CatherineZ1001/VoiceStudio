@@ -229,6 +229,13 @@ def _normalize_lang(raw) -> str | None:
     string ``"auto"`` (OmniVoice's sentinel), or ``None``. All three
     of ``"auto"``, ``""``, ``None`` map to ``"na"`` so the SDK's
     multilingual fallback engages cleanly.
+
+    Region tags (``"pt-BR"``, ``"pt_br"``) reduce to their base code. Anything
+    else is passed through unchanged so the SDK rejects it by name. #2938:
+    this used to keep the first two letters of whatever it got, which turned
+    picker names into invalid codes ("Portuguese" → "po") or, worse, into a
+    different language ("Estonian" → "es", Spanish). The parent now resolves
+    names before sending; this never guesses.
     """
     if raw is None:
         return "na"
@@ -237,7 +244,10 @@ def _normalize_lang(raw) -> str | None:
     s = raw.strip().lower()
     if not s or s == "auto":
         return "na"
-    return s[:2]
+    head = s.replace("_", "-").split("-", 1)[0]
+    if len(head) == 2 and head.isascii() and head.isalpha():
+        return head
+    return s
 
 
 def _handle_synthesize(msg: dict, stdout) -> None:

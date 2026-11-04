@@ -243,6 +243,13 @@ class TTSBackend(ABC):
     #: so this is a discoverability hint, not an enforcement gate.
     supports_emotion: bool = False
 
+    #: Built-in speaker ids a caller may pick with the ``voice`` generate kwarg
+    #: (e.g. Supertonic-3's ``M1``..``F5``). Empty for engines without presets.
+    #: Surfaced via ``list_backends()`` so the UI shows a preset picker only
+    #: where it does something, and ``/generate`` forwards ``voice`` only to
+    #: engines that declare presets (#2938).
+    voice_presets: tuple[str, ...] = ()
+
     def ensure_ready(self) -> None:
         """Load model weights now (blocking), so callers can separate the
         LOAD budget from the GENERATE budget (#1033/#1037 class).
@@ -299,7 +306,11 @@ class TTSBackend(ABC):
         from omnivoice.utils.lang_map import LANG_NAME_TO_ID
 
         # Reuse the same complete, bundled mapping as the language picker.
-        aliases = {"mandarin": "zh", "arabic": "ar", "tagalog": "tl"}
+        # The picker labels Arabic "Standard Arabic", which the map files under
+        # ISO 639-3 "arb"; engines declare the 639-1 "ar" (#2938).
+        aliases = {
+            "mandarin": "zh", "arabic": "ar", "standard arabic": "ar", "tagalog": "tl",
+        }
         if value in aliases:
             return aliases[value]
         if value in LANG_NAME_TO_ID:
@@ -3010,6 +3021,8 @@ def list_backends(*, include_hidden: bool = False) -> list[dict]:
             # Graded-emotion capability (#1208) — drives the Audiobook emotion
             # panel's engine gate. Class attr, defaults False.
             "supports_emotion": bool(getattr(cls, "supports_emotion", False)),
+            # Preset speakers the `voice` field selects (#2938); [] = none.
+            "voice_presets": list(getattr(cls, "voice_presets", ()) or ()),
             # Reference-length truth (#2281): how much of a clone clip the
             # engine really uses and how it picks it. None = not verified.
             "max_ref_seconds": getattr(cls, "max_ref_seconds", None),

@@ -802,6 +802,7 @@ class TaskExecutor:
                     layer_penalty_factor=params.get("layer_penalty_factor"),
                     position_temperature=params.get("position_temperature"),
                     class_temperature=params.get("class_temperature"),
+                    voice=params.get("voice"),
                 )
         except Exception as exc:
             from worker import errors as worker_errors  # noqa: PLC0415

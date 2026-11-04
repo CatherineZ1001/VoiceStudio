@@ -42,6 +42,17 @@ VOICE_PRESETS: list[str] = ["M1", "M3", "M4", "M5", "F3", "F4", "F5"]
 #: Default voice if the caller omits one or passes an unknown id.
 DEFAULT_VOICE: str = "M1"
 
+#: ISO 639-1 codes the model was trained on, copied from the SDK's
+#: ``supertonic.config.SUPPORTED_LANGUAGES`` in ``supertonic==1.3.1``. The SDK
+#: rejects anything else except ``"na"`` (its language-agnostic fallback, which
+#: the sidecar uses for Auto). Kept in-tree so the parent process can declare
+#: and validate them without importing the optional SDK (#2938).
+SUPPORTED_LANGUAGES: list[str] = [
+    "en", "ko", "ja", "ar", "bg", "cs", "da", "de", "el", "es", "et",
+    "fi", "fr", "hi", "hr", "hu", "id", "it", "lt", "lv", "nl", "pl",
+    "pt", "ro", "ru", "sk", "sl", "sv", "tr", "uk", "vi",
+]
+
 #: License URLs surfaced in the acceptance dialog (TTS-05).
 #:
 #: * ``code`` ‑‑ MIT, the inference SDK on GitHub.

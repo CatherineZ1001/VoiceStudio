@@ -41,9 +41,11 @@ against. See [downloading-models.md](../downloading-models.md).
 ## Voices
 
 Seven preset voices are surfaced: `M1` (default), `M3`, `M4`, `M5`, `F3`,
-`F4`, `F5`. The SDK itself accepts the full `M1`–`M5` / `F1`–`F5` set if a
-caller passes one explicitly; unknown ids fall back to the default with a
-log line.
+`F4`, `F5`. Pick one with the **Preset voice** menu next to the language
+picker; it appears only while Supertonic-3 is the active engine. API callers
+send the id in the `voice` field of `POST /generate`. `GET /engines/tts` lists
+the ids in the engine's `voice_presets`. An id outside that list is refused
+with a 400 that names the valid ones; engines without presets ignore the field.
 
 ## Behaviour notes
 
@@ -52,8 +54,12 @@ log line.
   install, otherwise from VoiceStudio's (where `uv sync --extra supertonic`
   puts it). Subsequent calls reuse the warm ONNX session.
 - `speed` is clamped to 0.7–2.0; quality steps clamp to 5–12.
-- Language is an ISO 639-1 code; Auto engages the SDK's multilingual
-  fallback.
+- Language accepts the picker's names ("Portuguese"), ISO 639-1 codes (`pt`)
+  and region tags (`pt-BR`); all resolve to the model's code. Only the model's
+  31 languages are offered: en, ko, ja, ar, bg, cs, da, de, el, es, et, fi, fr,
+  hi, hr, hu, id, it, lt, lv, nl, pl, pt, ro, ru, sk, sl, sv, tr, uk, vi.
+  Any other language is refused by name instead of being guessed. Auto engages
+  the SDK's multilingual fallback.
 
 ## Known limits
 

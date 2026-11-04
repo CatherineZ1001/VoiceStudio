@@ -25,6 +25,8 @@ export interface CloneSettings {
   showOverrides: boolean;
   selectedProfileId: string | null;
   autoPlay: boolean;
+  /** Preset speaker for engines that ship presets (#2938); '' = engine default. */
+  presetVoice: string;
 }
 
 export const DEFAULT_CLONE_SETTINGS: CloneSettings = {
@@ -45,6 +47,7 @@ export const DEFAULT_CLONE_SETTINGS: CloneSettings = {
   showOverrides: false,
   selectedProfileId: null,
   autoPlay: false,
+  presetVoice: '',
 };
 
 function acceptsValue(key: keyof CloneSettings, value: unknown): boolean {

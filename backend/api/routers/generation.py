@@ -932,13 +932,42 @@ def _run_inference(
         _oom_friendly_reraise(e)
 
 
+def _resolve_preset_voice(backend_cls, voice):
+    """The preset speaker to forward, or None (#2938).
+
+    Engines without presets ignore the field, so older or engine-agnostic
+    clients that send it keep working. On an engine that has presets, an
+    unknown id is a 400 that lists the valid ones — falling back to the
+    default voice would hand the user a take in a voice they didn't pick.
+    """
+    voice = (voice or "").strip()
+    presets = tuple(getattr(backend_cls, "voice_presets", ()) or ())
+    if not voice or not presets:
+        return None
+    if voice not in presets:
+        name = getattr(backend_cls, "display_name", None) or getattr(backend_cls, "id", "This engine")
+        raise HTTPException(
+            status_code=400,
+            detail=(
+                f"{name} has no preset voice {voice!r}. "
+                f"Choose one of: {', '.join(presets)}."
+            ),
+        )
+    return voice
+
+
+def _preset_voice_kwargs(backend, voice) -> dict:
+    """``{"voice": voice}`` only for an engine that declares presets."""
+    return {"voice": voice} if voice and getattr(backend, "voice_presets", ()) else {}
+
+
 def _run_backend_inference(
     backend, text, language, ref_audio_path, ref_text, instruct, duration,
     num_step, guidance_scale, speed, denoise, postprocess_output,
     used_seed, effect_preset="broadcast",
     max_chunk_chars=None, crossfade_ms=None, *, t_shift=None,
     layer_penalty_factor=None, position_temperature=None,
-    class_temperature=None, dropped_sink=None,
+    class_temperature=None, dropped_sink=None, voice=None,
 ):
     """Engine-aware twin of :func:`_run_inference` (issue #312).
 
@@ -960,6 +989,7 @@ def _run_backend_inference(
             language=language, ref_audio=ref_audio_path, ref_text=ref_text,
             instruct=instruct, num_step=num_step, guidance_scale=guidance_scale,
             speed=speed, denoise=denoise, postprocess_output=postprocess_output,
+            **_preset_voice_kwargs(backend, voice),
         )
         native_proxy = bool(
             getattr(backend, "supports_native_omnivoice_controls", False)
@@ -1488,6 +1518,10 @@ async def generate_speech(
     seed: Optional[int] = Form(None),
     effect_preset: str = Form("broadcast"),
     engine: Optional[str] = Form(None),
+    # #2938: a built-in speaker for engines that ship presets (Supertonic-3's
+    # M1..F5; see the engine's `voice_presets` in GET /engines/tts). Ignored by
+    # engines without presets; omitted = the engine's default voice.
+    voice: Optional[str] = Form(None),
     # Wave 1.2 — unlimited-length generation: long text is split at sentence
     # boundaries and crossfaded. 0 disables chunking (whole text to engine).
     max_chunk_chars: int = Form(800, ge=0),
@@ -1543,6 +1577,7 @@ async def generate_speech(
                 "See GET /engines/tts for the list of valid engine ids."
             ),
         )
+    voice = _resolve_preset_voice(backend_cls, voice)
 
     # Crash forensics (#1164): a generate is exactly the kind of work an OOM
     # kill lands on — record it (engine id only, never the text) so an
@@ -1875,6 +1910,7 @@ async def generate_speech(
         "max_chunk_chars": max_chunk_chars,
         "crossfade_ms": crossfade_ms,
         "effect_preset": effect_preset,
+        "voice": voice,
         # The requesting user's provenance preference, not the GPU owner's.
         "watermark": bool(_watermark_enabled()),
     }
@@ -2113,6 +2149,7 @@ async def generate_speech(
                         instruct=instruct, num_step=num_step,
                         guidance_scale=guidance_scale, speed=speed,
                         denoise=denoise, postprocess_output=postprocess_output,
+                        **_preset_voice_kwargs(_backend, voice),
                         **({
                             key: value for key, value in {
                                 "t_shift": t_shift,
@@ -2200,6 +2237,7 @@ async def generate_speech(
                                     position_temperature=position_temperature,
                                     class_temperature=class_temperature,
                                     dropped_sink=_dropped_sink,
+                                    voice=voice,
                                 ),
                                 what="TTS generate",
                                 min_vram_gb=_engine_min_vram_gb,
@@ -2432,6 +2470,7 @@ async def generate_speech(
                     position_temperature=position_temperature,
                     class_temperature=class_temperature,
                     dropped_sink=_dropped_text,
+                    voice=voice,
                 )
             else:
                 _local_render = functools.partial(

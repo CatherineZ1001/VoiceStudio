@@ -6,6 +6,7 @@ import { GenerationProvider, useGenerateClone } from './use-generate';
 import { patchCloneSettings } from '@/lib/store/clone-settings';
 import { generateClone } from '@/lib/api/generate';
 import { setLatestOutput } from '@/lib/store/output';
+import { queryKeys } from '@/lib/query';
 const modelStatus = vi.hoisted(() => ({
   value: { status: 'loading', loading: true } as {
     status: string;
@@ -240,4 +241,39 @@ it('attributes generation to an explicitly selected designed voice', async () =>
     expect.objectContaining({ profileId: 'design-profile', text: 'Profile script', seed: 7 }),
     expect.anything(),
   );
+});
+
+it.each([
+  { presets: ['M1', 'F3'], expected: 'F3' },
+  // A choice saved on Supertonic-3 must not follow the user to another engine.
+  { presets: [], expected: undefined },
+])('sends the saved preset voice only to an engine offering it (#2938)', async (row) => {
+  patchCloneSettings({ presetVoice: 'F3' });
+  vi.mocked(generateClone).mockClear().mockRejectedValueOnce(new Error('stop after request'));
+  const client = new QueryClient();
+  client.setQueryData(queryKeys.engines, {
+    tts: { active: 'engine', backends: [{ id: 'engine', voice_presets: row.presets }] },
+  });
+  function DesignConsumer() {
+    const state = useGenerateClone();
+    return (
+      <>
+        <button onClick={() => void state.generateDesign({ text: 'Hi', instruct: '', seed: 1 })}>
+          preset test
+        </button>
+        <span>{state.error}</span>
+      </>
+    );
+  }
+  render(
+    <QueryClientProvider client={client}>
+      <GenerationProvider>
+        <DesignConsumer />
+      </GenerationProvider>
+    </QueryClientProvider>,
+  );
+  fireEvent.click(screen.getByText('preset test'));
+  await screen.findByText('stop after request');
+  expect(vi.mocked(generateClone).mock.calls[0]?.[0].voice).toBe(row.expected);
+  patchCloneSettings({ presetVoice: '' });
 });

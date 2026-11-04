@@ -112,6 +112,11 @@ describe('toGenerateForm', () => {
     expect(form.get('duration')).toBe('3.5');
   });
 
+  it('sends a preset voice only when one is chosen (#2938)', () => {
+    expect(toGenerateForm({ ...BASE_INPUT, voice: 'F3' }).get('voice')).toBe('F3');
+    expect(toGenerateForm(BASE_INPUT).has('voice')).toBe(false);
+  });
+
   it('sends profile_id XOR ref_audio (profile wins)', () => {
     const clip = new File([new Uint8Array(4)], 'clip.wav', { type: 'audio/wav' });
     const withProfile = toGenerateForm({ ...BASE_INPUT, profileId: 'p1', refAudio: clip });

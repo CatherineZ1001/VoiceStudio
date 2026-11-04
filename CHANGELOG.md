@@ -8,6 +8,15 @@ metadata and the backend fallback mirror it. Archived Tauri manifests stay froze
 
 ## [Unreleased]
 
+**Highlights**
+
+- Supertonic-3 speaks the language you pick and lets you choose its preset voices (#2938)
+
+### Fixed
+
+- Supertonic-3 speaks the language you pick: Portuguese, German and Estonian no longer fail or come out in another language, Standard Arabic is selectable, and only its 31 languages are offered (#2938)
+- Supertonic-3's seven preset voices can be chosen from a new Preset voice menu, and `POST /generate` accepts a `voice` field (#2938)
+
 ## [0.5.6] — 2026-09-23
 
 **VoiceStudio now talks to your other tools.** Answer Twilio phone calls in a saved voice, and connect Claude Code, Cursor, Codex CLI and the OpenAI Agents SDK to VoiceStudio with copyable setup that works, including in Docker, where MCP previously returned HTTP 405. Integration cards now say plainly which ones work with VoiceStudio and which are external links.

@@ -199,6 +199,9 @@ def test_list_backends_shape(registry_sandbox):
         # Graded-emotion capability (#1208): bool from the class attr; drives
         # the Audiobook expressive panel's emotion gate.
         "supports_emotion",
+        # Preset speaker ids the `voice` generate field selects (#2938);
+        # [] for engines without presets. Drives the preset voice picker.
+        "voice_presets",
         # Reference-length truth (#2281): seconds of a clone clip the engine
         # uses and how it picks them; None when not verified in-repo.
         "max_ref_seconds", "ref_strategy",
@@ -231,6 +234,8 @@ def test_list_backends_shape(registry_sandbox):
         )
         # #1208: supports_emotion is always a concrete bool (never a descriptor).
         assert isinstance(entry["supports_emotion"], bool)
+        assert isinstance(entry["voice_presets"], list)
+        assert all(isinstance(v, str) for v in entry["voice_presets"])
 
 
 def test_mlx_audio_curated_models_roster(registry_sandbox):

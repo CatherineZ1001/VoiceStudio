@@ -81,6 +81,8 @@ class Supertonic3Backend(SubprocessBackend):
     display_name = "Supertonic-3 (31 langs, CPU ONNX, 7 preset voices, OpenRAIL-M)"
     supports_voice_design = False  # preset voices only
     supports_cloning = False  # preset voices only; generate() never reads ref_audio
+    # Surfaced by list_backends() so the UI can offer a preset picker (#2938).
+    voice_presets: tuple[str, ...] = tuple(st3_constants.VOICE_PRESETS)
     # TTS-04: honest hardware reporting. Supertonic-3 has no CUDA / MPS
     # path in the SDK ‑‑ ONNX Runtime CPU EP only.
     gpu_compat: tuple[str, ...] = ("cpu",)
@@ -162,10 +164,13 @@ class Supertonic3Backend(SubprocessBackend):
 
     @property
     def supported_languages(self) -> list[str]:
-        # 31 ISO codes + "na" fallback per the SDK; we expose "multi" on
-        # the protocol surface (same approach as OmniVoice / CosyVoice)
-        # and translate the caller's language at synthesize time.
-        return ["multi"]
+        # The model's real 31-language set (#2938). Declaring it, instead of
+        # the open-ended "multi", lets the shared TTSBackend machinery do the
+        # work: picker names ("Portuguese") resolve to their ISO code via
+        # ``_normalize_language_code``, unsupported picks get the standard
+        # "engine doesn't support language" 400, and the language picker
+        # only offers languages this engine can actually speak.
+        return list(st3_constants.SUPPORTED_LANGUAGES)
 
     # ── extra env for the sidecar (T-03-02 mitigation) ─────────────────
 
@@ -187,7 +192,11 @@ class Supertonic3Backend(SubprocessBackend):
           * ``voice``        ‑‑ one of :data:`VOICE_PRESETS` (str). Default
                                 ``DEFAULT_VOICE``. Unknown ids log a warning
                                 and fall back.
-          * ``language``     ‑‑ ISO 639-1 code or ``"auto"`` / ``None``.
+          * ``language``     ‑‑ picker name ("Portuguese"), ISO 639-1 code
+                                or region tag ("pt-BR"), or ``"auto"`` /
+                                ``None``. Resolved to the ISO code by
+                                :meth:`_check_language`, which rejects
+                                languages outside :data:`SUPPORTED_LANGUAGES`.
                                 ``"auto"`` and ``None`` map to ``"na"`` so
                                 the SDK's multilingual fallback engages.
           * ``speed``        ‑‑ float, clamped to [0.7, 2.0].
@@ -217,7 +226,10 @@ class Supertonic3Backend(SubprocessBackend):
             )
             voice = st3_constants.DEFAULT_VOICE
 
-        language = kw.get("language")
+        # #2938: the UI sends picker names, never ISO codes. Resolve them here,
+        # in the parent, where the shared name→code map lives (the sidecar may
+        # run in its own venv without it). None means Auto.
+        language = self._check_language(kw.get("language"))
         speed = float(kw.get("speed", 1.0))
         speed = max(0.7, min(2.0, speed))
 
@@ -230,7 +242,7 @@ class Supertonic3Backend(SubprocessBackend):
         # ``total_steps`` all qualify.
         forwarded = {
             "voice": voice,
-            "lang": language if language is None else str(language),
+            "lang": language,
             "speed": speed,
             "total_steps": total_steps,
         }
